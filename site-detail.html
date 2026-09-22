@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aruna PV Dashboard</title>
+<link rel="icon" href="data:,">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#FAF8F7;display:flex;align-items:center;justify-content:center;padding:16px;color:#1A1416;font-family:Inter,'Segoe UI',system-ui,sans-serif}
+  #card{background:#FFFFFF;border:1px solid #E8E4E4;border-radius:13px;padding:28px 24px;width:360px;max-width:100%}
+  #mark{font-family:Archivo,'Segoe UI',system-ui,sans-serif;color:#C30704;font-weight:700;font-size:22px;letter-spacing:2px;margin:0;text-align:center}
+  #sub{color:#6E686B;font-size:12.5px;text-align:center;margin:6px 0 20px}
+  #pw{width:100%;height:40px;border:1px solid #E8E4E4;border-radius:9px;padding:0 12px;font-size:13px;color:#1A1416;outline:none;font-family:inherit}
+  #pw:focus{border-color:#C30704}
+  #go{width:100%;height:40px;margin-top:10px;border:none;border-radius:9px;background:#C30704;color:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  #go:disabled{opacity:.6;cursor:default}
+  #st{min-height:18px;margin-top:10px;font-size:12.5px;color:#6E686B;text-align:center}
+  #foot{margin-top:16px;text-align:center;font-size:10.5px;color:#A9A3A4}
+  html.cached #sub,html.cached #pw,html.cached #go{display:none}
+</style>
+<script>
+try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElement.className+=' cached'}catch(e){}
+</script>
+</head>
+<body>
+<div id="card">
+  <h1 id="mark">ARUNA</h1>
+  <p id="sub">PV Dashboard &mdash; enter access code</p>
+  <input id="pw" type="password" autocomplete="current-password" autofocus aria-label="Access code">
+  <button id="go">Unlock</button>
+  <div id="st" role="status"></div>
+  <div id="foot">Confidential &mdash; files stored encrypted</div>
+</div>
+<script>
+(function(){
+  var TARGET="site-detail.enc";
+  var SALT="3CI8MmiIeeqFn/AkWJseXA==";
+  var ITER=600000;
+  var st=document.getElementById('st'), go=document.getElementById('go'), pw=document.getElementById('pw');
+  function b64(buf){var b=new Uint8Array(buf),s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
+  function unb64(s){var bin=atob(s),b=new Uint8Array(bin.length);for(var i=0;i<b.length;i++)b[i]=bin.charCodeAt(i);return b}
+  function dec(key,buf){
+    if(buf.byteLength<29)throw {kind:'net'};
+    return crypto.subtle.decrypt({name:'AES-GCM',iv:buf.slice(0,12)},key,buf.slice(12));
+  }
+  async function land(html,key){
+    try{
+      var raw=await crypto.subtle.exportKey('raw',key);
+      try{sessionStorage.setItem('adb-key',b64(raw))}catch(e){}
+    }catch(e){}
+    ['overview','sites','site-detail','finance','model'].forEach(function(n){
+      if(n+'.enc'!==TARGET){try{fetch(n+'.enc',{cache:'force-cache'})}catch(e){}}
+    });
+    if(location.pathname.indexOf('index.html')>-1){
+      try{history.replaceState(null,'','overview.html')}catch(e){}
+    }
+    document.open();document.write(html);document.close();
+  }
+  async function derive(code,extractable){
+    var base=await crypto.subtle.importKey('raw',new TextEncoder().encode(code),'PBKDF2',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(SALT),iterations:ITER,hash:'SHA-256'},base,{name:'AES-GCM',length:256},!!extractable,['decrypt','encrypt']);
+  }
+  async function fetchDec(key){
+    var res=await fetch(TARGET);
+    if(!res.ok)throw {kind:'net',status:res.status};
+    return new TextDecoder().decode(await dec(key,await res.arrayBuffer()));
+  }
+  async function unlock(code){
+    st.textContent='Decrypting...';go.disabled=true;
+    try{
+      var key=await derive(code,true);
+      var html=await fetchDec(key);
+      await land(html,key);
+    }catch(e){
+      go.disabled=false;
+      if(e&&e.kind==='net')st.textContent="Couldn't load page data - check your connection and retry.";
+      else{st.textContent="Wrong access code, or the download was incomplete - try again.";try{pw.select()}catch(_){}}
+      console.error('unlock',e);
+    }
+  }
+  (async function(){
+    var k=null;
+    try{k=sessionStorage.getItem('adb-key')}catch(e){}
+    if(typeof k==='string'&&k.length>20){
+      st.textContent='Loading...';
+      try{
+        var key=await crypto.subtle.importKey('raw',unb64(k),{name:'AES-GCM'},false,['decrypt']);
+        var html=await fetchDec(key);
+        await land(html,key);
+        return;
+      }catch(e){
+        try{sessionStorage.removeItem('adb-key')}catch(_){}
+        document.documentElement.classList.remove('cached');
+        st.textContent='';
+      }
+    }
+    try{pw.focus()}catch(e){}
+  })();
+  go.addEventListener('click',function(){unlock(pw.value)});
+  pw.addEventListener('keydown',function(e){if(e.key==='Enter')unlock(pw.value)});
+})();
+</script>
+</body>
+</html>
