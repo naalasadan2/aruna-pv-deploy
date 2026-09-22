@@ -21,7 +21,7 @@
   html.cached #sub,html.cached #pw,html.cached #go{display:none}
 </style>
 <script>
-try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElement.className+=' cached'}catch(e){}
+try{var __k=localStorage.getItem('adb-key')||sessionStorage.getItem('adb-key');if(typeof __k==='string'&&__k)document.documentElement.className+=' cached'}catch(e){}
 </script>
 </head>
 <body>
@@ -36,7 +36,7 @@ try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElem
 <script>
 (function(){
   var TARGET="site-detail.enc";
-  var SALT="3CI8MmiIeeqFn/AkWJseXA==";
+  var SALT="gzv/FG/2y9UZ2Bd7SYmT1A==";
   var ITER=600000;
   var st=document.getElementById('st'), go=document.getElementById('go'), pw=document.getElementById('pw');
   function b64(buf){var b=new Uint8Array(buf),s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
@@ -48,10 +48,10 @@ try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElem
   async function land(html,key){
     try{
       var raw=await crypto.subtle.exportKey('raw',key);
-      try{sessionStorage.setItem('adb-key',b64(raw))}catch(e){}
+      try{localStorage.setItem('adb-key',b64(raw))}catch(e){}
     }catch(e){}
     ['overview','sites','site-detail','finance','model'].forEach(function(n){
-      if(n+'.enc'!==TARGET){try{fetch(n+'.enc',{cache:'force-cache'})}catch(e){}}
+      if(n+'.enc'!==TARGET){try{fetch(n+'.enc',{cache:'force-cache'}).catch(function(){})}catch(e){}}
     });
     if(location.pathname.indexOf('index.html')>-1){
       try{history.replaceState(null,'','overview.html')}catch(e){}
@@ -63,7 +63,8 @@ try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElem
     return crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(SALT),iterations:ITER,hash:'SHA-256'},base,{name:'AES-GCM',length:256},!!extractable,['decrypt','encrypt']);
   }
   async function fetchDec(key){
-    var res=await fetch(TARGET);
+    var res;
+    try{ res=await fetch(TARGET); }catch(e){ throw {kind:'net'}; }
     if(!res.ok)throw {kind:'net',status:res.status};
     return new TextDecoder().decode(await dec(key,await res.arrayBuffer()));
   }
@@ -82,7 +83,7 @@ try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElem
   }
   (async function(){
     var k=null;
-    try{k=sessionStorage.getItem('adb-key')}catch(e){}
+    try{k=localStorage.getItem('adb-key')||sessionStorage.getItem('adb-key')}catch(e){}
     if(typeof k==='string'&&k.length>20){
       st.textContent='Loading...';
       try{
@@ -91,7 +92,11 @@ try{if(typeof sessionStorage.getItem('adb-key')==='string')document.documentElem
         await land(html,key);
         return;
       }catch(e){
-        try{sessionStorage.removeItem('adb-key')}catch(_){}
+        if(e&&e.kind==='net'){
+          st.textContent="Couldn't load page data - refresh to retry.";
+          return; // ponytail: keep key+class on a network blip; F5 refetches
+        }
+        try{localStorage.removeItem('adb-key');sessionStorage.removeItem('adb-key')}catch(_){}
         document.documentElement.classList.remove('cached');
         st.textContent='';
       }
