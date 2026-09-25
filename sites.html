@@ -35,8 +35,8 @@ try{var __k=localStorage.getItem('adb-key')||sessionStorage.getItem('adb-key');i
 </div>
 <script>
 (function(){
-  var TARGET="sites.enc?v=pJZvfYzOo2Rg";
-  var SALT="pJZvfYzOo2Rgg6LB0VO/Ig==";
+  var TARGET="sites.enc?v=7kEx2oLNoP5d";
+  var SALT="7kEx2oLNoP5dBoo4/I3l3Q==";
   var ITER=600000;
   var st=document.getElementById('st'), go=document.getElementById('go'), pw=document.getElementById('pw');
   function b64(buf){var b=new Uint8Array(buf),s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
@@ -51,7 +51,7 @@ try{var __k=localStorage.getItem('adb-key')||sessionStorage.getItem('adb-key');i
       try{localStorage.setItem('adb-key',b64(raw))}catch(e){}
     }catch(e){}
     ['overview','sites','site-detail','finance','model'].forEach(function(n){
-      var u=n+'.enc?v=pJZvfYzOo2Rg';
+      var u=n+'.enc?v=7kEx2oLNoP5d';
       if(u!==TARGET){try{fetch(u).catch(function(){})}catch(e){}}
     });
     if(location.pathname.indexOf('index.html')>-1){
